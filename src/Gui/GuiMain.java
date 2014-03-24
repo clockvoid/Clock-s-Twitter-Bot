@@ -1,6 +1,6 @@
 package Gui;
 
-import java.awt.BorderLayout;
+import java.awt.*;
 
 import javax.swing.*;
 
@@ -10,22 +10,14 @@ public class GuiMain extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private JTextArea textArea;
-	private String text;
+	private LogWindow log;
 	
 	public String getPIN() {
 		return JOptionPane.showInputDialog(this, "PINî‘çÜÇì¸óÕÇµÇƒÇ≠ÇæÇ≥Ç¢");
 	}
 	
 	public void addText(String str) {
-		text += str + "\n";
-		textArea.setText(text);
-	}
-	
-	private void setTextArea() {
-		textArea = new JTextArea();
-		textArea.setEditable(false);
-		getContentPane().add(new JScrollPane(textArea), BorderLayout.CENTER);
+		log.addText(str);
 	}
 	
 	public GuiMain() {
@@ -33,9 +25,9 @@ public class GuiMain extends JFrame {
 		setSize(800, 400);
 		setLocationRelativeTo(null);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setTextArea();
+		log = new LogWindow();
+		getContentPane().add(new JScrollPane(log), BorderLayout.CENTER);
 		setVisible(true);
-		text = "";
 	}
-
+	
 }

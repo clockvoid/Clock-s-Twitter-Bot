@@ -3,19 +3,56 @@ package Bot;
 import twitter4j.*;
 import Gui.*;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.*;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 public class StreamListener implements UserStreamListener{
-	private static List<UpdateBotClass> botClasses;
+	private static List<UpdateBot> botClasses;
 	private static GuiMain gui;
 	private static Twitter twitter;
+	
+	@SuppressWarnings("resource" )
+	private void getPlugins() {
+		File pluginDir = new File(System.getProperty("user.dir") + File.separator + "plugins");
+		for(File f : pluginDir.listFiles()) {
+			try {
+				if(f.getName().endsWith(".jar")) {
+					JarFile jar = new JarFile(f);
+					URLClassLoader loader = new URLClassLoader(new URL[] { f.toURI().toURL() });
+					for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
+						JarEntry ze = (JarEntry)e.nextElement();
+						if (!ze.isDirectory() && ze.getName().endsWith(".class")) {
+							Class<?> c = loader.loadClass(ze.getName().replace('/', '.').replace(".class", ""));
+							for(int i = 0; i < c.getInterfaces().length; i ++) {
+								if (c.getInterfaces()[i] == UpdateBot.class) {
+									gui.addText("Loaded Plugin -> " + c.getName());
+									UpdateBot p = (UpdateBot)c.newInstance();
+									p.setGui(gui);
+									p.setTwitter(twitter);
+									botClasses.add(p);
+								} else {
+									gui.addText(c.getName() + "はプラグインとして認められません");
+								}
+							}
+						}
+					}
+				}
+			} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IOException e) {
+				gui.addText("例外が発生しました。ご確認ください。→" + e.getClass().getName());
+			}
+		}
+	}
 	
 	public StreamListener(Twitter twi, GuiMain tmp) throws TwitterException, IllegalStateException {
 		twitter = twi;
 		gui = tmp;
-		botClasses = new ArrayList<UpdateBotClass>();
-		botClasses.add(new UpdateNamer(twitter, gui));
-		botClasses.add(new UpdateStatuser(twitter, gui));
+		botClasses = new ArrayList<UpdateBot>();
+		getPlugins();
 	}
 	
 	@Override
@@ -39,15 +76,17 @@ public class StreamListener implements UserStreamListener{
 	@Override
 	public void onStatus(Status arg0) {
 		// TODO Auto-generated method stub
-		gui.addText(arg0.getText() + "\n-by @" + arg0.getUser().getScreenName());
 		int min = 140, indexNum = -1, count = 0;
-		for(UpdateBotClass bot : botClasses ) {
+		for(UpdateBot bot : botClasses ) {
 			int num = bot.searchWord(arg0);
 			if(num < min && num != -1) { min = num; indexNum = count; }
 			count ++;
 		}
 		try {
-			if(indexNum != -1)botClasses.get(indexNum).update();
+			if(indexNum != -1) {
+				gui.addText(arg0.getText() + "\n-by @" + arg0.getUser().getScreenName());
+				botClasses.get(indexNum).update();
+			}
 		} catch (IllegalStateException | TwitterException e) {
 			// TODO Auto-generated catch block
 			gui.addText("例外が発生しました。ご確認ください→" + e.getClass().toString());
